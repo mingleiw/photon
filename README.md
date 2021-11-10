@@ -10,3 +10,20 @@ A simple xdp_pass eBPF program can be found under [examples/](examples/). Use th
 $ cd examples/xdp && make
 $ sudo ./xdp_pass -d lo // xdp_pass will be attached to XDP hook point of device lo.
 ```
+
+## System Requirements
+
+- Linux kernel 4.18+
+- libbpf (319ff2f0f6c6e823a705f21a6354af8d9cbadd14)
+- clang / LLVM 6.0+
+- libelf-dev, libpcap-dev(Ubuntu)
+- elfutils-libelf-devel, libpcap-devel(Fedora)
+
+## Print TCP packets
+
+xdppacket program prints xdp TCP packets in HEX format. 
+
+```bash
+$ cd xdppacket && make
+$ sudo ./xdppacket -i lo -S
+```
