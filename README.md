@@ -18,12 +18,22 @@ $ sudo ./xdp_pass -d lo // xdp_pass will be attached to XDP hook point of device
 - clang / LLVM 6.0+
 - libelf-dev, libpcap-dev(Ubuntu)
 - elfutils-libelf-devel, libpcap-devel(Fedora)
+- Go 1.10+
 
 ## Print TCP packets
 
 xdppacket program prints xdp TCP packets in HEX format. 
 
 ```bash
+// open a terminal (#1)
 $ cd xdppacket && make
 $ sudo ./xdppacket -i lo -S
+
+// open another terminal (#2)
+$ go run test/http_server.go
+
+// open another terminal (#3)
+$ curl --header "Content-Type: application/json" --request POST --data '{"xdp":"awesome"}' http://localhost:81/test
+
+// Check #1 terminal's output
 ```
