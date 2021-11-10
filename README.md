@@ -7,6 +7,6 @@ eBPF-based network monitoring tool which can capture the service live traffic. P
 A simple xdp_pass eBPF program can be found under [examples/](examples/). Use this to test your environment setup for eBPF development. 
 
 ```bash
-$ Make
-$ ./xdp_pass -d lo // xdp_pass will be attached to XDP hook point.
+$ cd examples/xdp && make
+$ sudo ./xdp_pass -d lo // xdp_pass will be attached to XDP hook point of device lo.
 ```
