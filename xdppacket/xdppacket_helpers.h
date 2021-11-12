@@ -13,6 +13,10 @@ static __always_inline bool parse_tcp(void *data, __u64 offset, void *data_end,
 	metadata->port16[1] = tcp->dest;
 	metadata->seq = tcp->seq;
 
+    if (tcp->dest != bpf_htons(81)) {
+        return false;
+    }
+
 	return true;
 }
 
