@@ -2,9 +2,12 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/gopacket"
@@ -40,11 +43,32 @@ func (h *httpStream) run() {
 		if err == io.EOF {
 			return
 		} else if err != nil {
-			log.Println("Error reading stream", h.net, h.transport, ":", err)
-		} else {
-			bodyBytes := tcpreader.DiscardBytesToEOF(req.Body)
-			req.Body.Close()
-			log.Println("Received request from stream", h.net, h.transport, ":", req, "with", bodyBytes, "bytes in request body")
+			fmt.Println("Error reading stream", h.net, h.transport, ":", err)
+		} else if req.Method == "POST" {
+			var data interface{}
+			err = json.NewDecoder(req.Body).Decode(&data)
+			if err != nil {
+				return
+			}
+			payload, err := json.Marshal(data)
+			if err != nil {
+				return
+			}
+
+			headers := make(map[string]string)
+			for k, v := range req.Header {
+				headers[k] = strings.Join(v[:], ",")
+			}
+			h, err := json.Marshal(headers)
+			if err != nil {
+				return
+			}
+
+			fmt.Println("=================")
+			fmt.Println("header:", string(h))
+			fmt.Println("body:", string(payload))
+			defer req.Body.Close()
+
 		}
 	}
 }

@@ -158,7 +158,7 @@ define i32 @process_packet(%struct.xdp_md*) #0 section "xdp_packet" !dbg !99 {
   %82 = getelementptr inbounds %struct.packet_metadata, %struct.packet_metadata* %2, i64 0, i32 7, !dbg !357
   store i32 %81, i32* %82, align 4, !dbg !358, !tbaa !359
   %83 = load i16, i16* %76, align 2, !dbg !360, !tbaa !352
-  %84 = icmp eq i16 %83, 20992, !dbg !362
+  %84 = icmp eq i16 %83, 20736, !dbg !362
   br i1 %84, label %85, label %106, !dbg !363
 
 ; <label>:85:                                     ; preds = %71
