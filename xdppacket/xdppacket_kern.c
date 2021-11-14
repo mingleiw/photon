@@ -8,7 +8,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
-#include <bpf/bpf_helpers.h>
+#include "bpf_helpers.h"
 #include "bpf_endian.h"
 #include "xdppacket_common.h"
 #include "xdppacket_helpers.h"
