@@ -1,6 +1,6 @@
 # photon
 
-eBPF-based network monitoring tool which can capture the service live traffic. Photon attaches an eBPF program to service host/vm xdp hook point and store the packets to BPF_MAP_TYPE_PERF_EVENT_ARRAY map. A user space program prints the packets and store them in the pcap file.
+eBPF-based network monitoring tool which can capture the service live traffic. Photon attaches an eBPF program to service host/vm xdp hook point and store the packets to BPF_MAP_TYPE_PERF_EVENT_ARRAY map. A user space program prints the packets and store them in the pcap file. This project was inspired by [xdpdump](https://github.com/Netronome/bpf-samples/tree/master/xdpdump) and based on the learnings of [xdp-tutorial](https://github.com/xdp-project/xdp-tutorial).
 
 ## Getting Started
 
