@@ -35,6 +35,8 @@ $ go run test/http_server.go
 // open another terminal (#3)
 $ curl --header "Content-Type: application/json" --request POST --data '{"xdp":"awesome"}' http://localhost:81/test
 
-// Check #1 terminal's output
-// Check xdppacket/packets.pcap
+// Assemble the packets
+$ mv xdppacket/packets.pcap test/
+$ cd test && go mod tidy
+$ go run main.go
 ```
