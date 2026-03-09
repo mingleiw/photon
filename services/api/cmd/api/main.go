@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"photon-api/internal/httpx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -32,6 +33,14 @@ func main() {
 		port = "8080"
 	}
 
+	mux := routes()
+
+	addr := fmt.Sprintf(":%s", port)
+	log.Printf("listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, instrument(mux)))
+}
+
+func routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -40,28 +49,15 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("photon fault-chain api: ok"))
 	})
-
-	addr := fmt.Sprintf(":%s", port)
-	log.Printf("listening on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, instrument(mux)))
+	return mux
 }
 
 func instrument(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rw := &rec{ResponseWriter: w, code: 200}
+		rw := httpx.NewRecorder(w)
 		next.ServeHTTP(rw, r)
-		reqTotal.WithLabelValues(r.URL.Path, r.Method, fmt.Sprintf("%d", rw.code)).Inc()
+		reqTotal.WithLabelValues(r.URL.Path, r.Method, fmt.Sprintf("%d", rw.Code)).Inc()
 	})
-}
-
-type rec struct {
-	http.ResponseWriter
-	code int
-}
-
-func (r *rec) WriteHeader(statusCode int) {
-	r.code = statusCode
-	r.ResponseWriter.WriteHeader(statusCode)
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
