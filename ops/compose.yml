@@ -14,6 +14,10 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
 
   api:
+    networks:
+      default:
+        aliases:
+          - photon-api
     build:
       context: ../services/api
     environment:
