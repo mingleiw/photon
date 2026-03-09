@@ -7,8 +7,6 @@ services:
       POSTGRES_DB: photon
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
   prometheus:
     image: prom/prometheus:v2.52.0
@@ -24,13 +22,18 @@ services:
       context: ../services/api
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/photon?sslmode=disable
-      PROM_URL: http://prometheus:9090
       PORT: "8080"
     ports:
       - "8080:8080"
     depends_on:
       - postgres
-      - prometheus
 
-volumes:
-  pgdata:
+  ui:
+    build:
+      context: ../services/ui
+    ports:
+      - "8081:80"
+    depends_on:
+      - api
+
+volumes: {}
