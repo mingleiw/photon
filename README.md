@@ -16,4 +16,4 @@ This repository is evolving from the original Photon prototype into an **end-to-
 - UI: minimal web UI (graph + heatmap)
 
 ## Quick start (dev)
-See `docs/dev.md`.
+See `docs/dev.md` (local dev) or `docs/install.md` (Kubernetes install).

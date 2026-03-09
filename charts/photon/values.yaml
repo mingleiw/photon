@@ -1,0 +1,51 @@
+# Defaults for a single-cluster MVP install.
+
+cilium:
+  enabled: true
+  # Cilium chart values are extensive; we set only MVP-critical pieces.
+  hubble:
+    enabled: true
+    relay:
+      enabled: true
+    ui:
+      enabled: true
+  prometheus:
+    enabled: true
+
+prometheus:
+  enabled: true
+  alertmanager:
+    enabled: false
+  pushgateway:
+    enabled: false
+  server:
+    persistentVolume:
+      enabled: false
+
+postgresql:
+  enabled: true
+  auth:
+    username: photon
+    password: photon
+    database: photon
+  primary:
+    persistence:
+      enabled: false
+
+api:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/mingleiw/photon-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  env:
+    # In-cluster DB
+    DATABASE_URL: "postgresql://photon:photon@photon-postgresql:5432/photon?sslmode=disable"
+    PROM_URL: "http://photon-prometheus-server:80"
+
+ui:
+  enabled: false

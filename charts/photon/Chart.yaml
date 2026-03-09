@@ -1,0 +1,20 @@
+apiVersion: v2
+name: photon
+description: Fault Chain System (eBPF-first) — out-of-box single-cluster install
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+  - name: cilium
+    version: 1.15.14
+    repository: https://helm.cilium.io/
+    condition: cilium.enabled
+  - name: prometheus
+    version: 25.27.0
+    repository: https://prometheus-community.github.io/helm-charts
+    condition: prometheus.enabled
+  - name: postgresql
+    version: 15.5.38
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
