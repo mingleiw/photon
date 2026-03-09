@@ -125,10 +125,10 @@ export default function App() {
     if (!selected) return
     setErr('')
     Promise.all([
-      getJSON<Root[]>(`/api/incidents//roots`),
-      getJSON<HeatCell[]>(`/api/incidents//heatmap`),
-      getJSON<Anomaly[]>(`/api/incidents//anomalies`),
-      getJSON<Graph>(`/api/incidents//graph`)
+      getJSON<Root[]>(`/api/incidents/${selected}/roots`),
+      getJSON<HeatCell[]>(`/api/incidents/${selected}/heatmap`),
+      getJSON<Anomaly[]>(`/api/incidents/${selected}/anomalies`),
+      getJSON<Graph>(`/api/incidents/${selected}/graph`)
     ])
       .then(([r, h, a, g]) => {
         setRoots(r)
