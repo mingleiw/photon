@@ -1,0 +1,8 @@
+Fault Chain System installed.
+
+API:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "photon.fullname" . }}-api 8080:{{ .Values.api.service.port }}
+  curl http://127.0.0.1:8080/healthz
+
+Prometheus:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ .Release.Name }}-prometheus-server 9090:80
