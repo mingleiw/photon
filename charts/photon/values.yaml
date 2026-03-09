@@ -43,9 +43,15 @@ api:
     type: ClusterIP
     port: 8080
   env:
-    # In-cluster DB
     DATABASE_URL: "postgresql://photon:photon@photon-postgresql:5432/photon?sslmode=disable"
     PROM_URL: "http://photon-prometheus-server:80"
 
 ui:
-  enabled: false
+  enabled: true
+  image:
+    repository: ghcr.io/mingleiw/photon-ui
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
