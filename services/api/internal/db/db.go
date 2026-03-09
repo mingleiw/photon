@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -23,6 +24,30 @@ func Open(ctx context.Context, url string) (*DB, error) {
 		return nil, err
 	}
 	return &DB{Pool: pool}, nil
+}
+
+// OpenAndWait waits for the DB to accept connections.
+func OpenAndWait(ctx context.Context, url string, wait time.Duration) (*DB, error) {
+	deadline := time.Now().Add(wait)
+	for {
+		d, err := Open(ctx, url)
+		if err == nil {
+			pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			err = d.Pool.Ping(pingCtx)
+			cancel()
+			if err == nil {
+				return d, nil
+			}
+			d.Close()
+		}
+		if time.Now().After(deadline) {
+			if err != nil {
+				return nil, err
+			}
+			return nil, context.DeadlineExceeded
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func (d *DB) Close() { d.Pool.Close() }

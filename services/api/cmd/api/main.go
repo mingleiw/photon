@@ -24,7 +24,7 @@ func main() {
 		log.Fatal("DATABASE_URL is required")
 	}
 
-	d, err := db.Open(ctx, dbURL)
+	d, err := db.OpenAndWait(ctx, dbURL, 30*time.Second)
 	if err != nil {
 		log.Fatalf("db open: %v", err)
 	}

@@ -5,13 +5,9 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
       POSTGRES_DB: photon
-    ports:
-      - "5432:5432"
 
   prometheus:
     image: prom/prometheus:v2.52.0
-    ports:
-      - "9090:9090"
     volumes:
       - ./prometheus:/etc/prometheus
     command:
@@ -27,6 +23,7 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
+    restart: unless-stopped
 
   ui:
     build:
