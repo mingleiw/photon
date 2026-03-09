@@ -6,6 +6,10 @@ type Root = { entityType: string; entityId: string; score: number; rationale: st
 
 type HeatCell = { domain: string; weight: number }
 
+type Graph = { nodes: GraphNode[]; edges: GraphEdge[] }
+type GraphNode = { id: string; entityType: string; entityId: string; weight: number; domain?: string }
+type GraphEdge = { from: string; to: string; weight: number; rationale: string }
+
 type Anomaly = { id: string; ts: string; entityType: string; entityId: string; metric: string; severity: number; confidence: number; domain?: string }
 
 async function getJSON<T>(path: string): Promise<T> {
@@ -19,12 +23,93 @@ function barWidth(w: number, max: number) {
   return `${Math.round((w / max) * 100)}%`
 }
 
+
+function GraphView({ graph }: { graph: Graph }) {
+  const nodes = graph.nodes
+  const edges = graph.edges
+  if (!nodes.length) return <div style={{ color: '#777' }}>No graph data.</div>
+
+  const width = 760
+  const height = 220
+  const pad = 18
+
+  // simple deterministic layout: node->service1->service2 in a row by type
+  const sorted = [...nodes].sort((a, b) => a.id.localeCompare(b.id))
+  const groups: Record<string, GraphNode[]> = { node: [], service: [] }
+  for (const n of sorted) {
+    ;(groups[n.entityType] ?? (groups[n.entityType] = [])).push(n)
+  }
+
+  const positioned: Record<string, { x: number; y: number; n: GraphNode }> = {}
+  const lanes = [
+    { t: 'node', y: height * 0.35 },
+    { t: 'service', y: height * 0.70 }
+  ]
+  for (const lane of lanes) {
+    const arr = groups[lane.t] ?? []
+    const step = arr.length > 1 ? (width - pad * 2) / (arr.length - 1) : 0
+    arr.forEach((n, i) => {
+      const x = pad + (arr.length === 1 ? (width - pad * 2) / 2 : i * step)
+      positioned[n.id] = { x, y: lane.y, n }
+    })
+  }
+
+  const maxW = Math.max(0, ...nodes.map((n) => n.weight))
+  const nodeColor = (n: GraphNode) => {
+    if (n.entityType === 'node') return '#1f77b4'
+    if ((n.domain ?? '').toLowerCase().includes('checkout')) return '#e94560'
+    if ((n.domain ?? '').toLowerCase().includes('payments')) return '#ff8c00'
+    return '#444'
+  }
+
+  return (
+    <svg width={width} height={height} style={{ width: '100%', height: 'auto', background: '#fafafa', borderRadius: 10, border: '1px solid #eee' }}>
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L9,3 z" fill="#666" />
+        </marker>
+      </defs>
+
+      {edges.map((e) => {
+        const a = positioned[e.from]
+        const b = positioned[e.to]
+        if (!a || !b) return null
+        const strokeW = 1 + (e.weight / (1 || 1)) * 2
+        return (
+          <g key={`${e.from}->${e.to}`}>
+            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#666" strokeWidth={strokeW} markerEnd="url(#arrow)" />
+            <title>{e.rationale}</title>
+          </g>
+        )
+      })}
+
+      {nodes.map((n) => {
+        const p = positioned[n.id]
+        if (!p) return null
+        const r = 10 + (maxW ? (n.weight / maxW) * 10 : 0)
+        const label = `${n.entityType}: ${n.entityId}`
+        return (
+          <g key={n.id}>
+            <circle cx={p.x} cy={p.y} r={r} fill={nodeColor(n)} opacity={0.92} />
+            <text x={p.x} y={p.y - r - 6} textAnchor="middle" fontSize="11" fill="#222">
+              {label}
+            </text>
+            <title>{label}
+weight: {n.weight.toFixed(3)}</title>
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
 export default function App() {
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [selected, setSelected] = useState<string>('')
   const [roots, setRoots] = useState<Root[]>([])
   const [heat, setHeat] = useState<HeatCell[]>([])
   const [anoms, setAnoms] = useState<Anomaly[]>([])
+  const [graph, setGraph] = useState<Graph>({ nodes: [], edges: [] })
   const [err, setErr] = useState<string>('')
 
   useEffect(() => {
@@ -40,14 +125,16 @@ export default function App() {
     if (!selected) return
     setErr('')
     Promise.all([
-      getJSON<Root[]>(`/api/incidents/${selected}/roots`),
-      getJSON<HeatCell[]>(`/api/incidents/${selected}/heatmap`),
-      getJSON<Anomaly[]>(`/api/incidents/${selected}/anomalies`)
+      getJSON<Root[]>(`/api/incidents//roots`),
+      getJSON<HeatCell[]>(`/api/incidents//heatmap`),
+      getJSON<Anomaly[]>(`/api/incidents//anomalies`),
+      getJSON<Graph>(`/api/incidents//graph`)
     ])
-      .then(([r, h, a]) => {
+      .then(([r, h, a, g]) => {
         setRoots(r)
         setHeat(h)
         setAnoms(a)
+        setGraph(g)
       })
       .catch((e) => setErr(String(e)))
   }, [selected])
@@ -117,7 +204,16 @@ export default function App() {
             ))}
           </div>
 
+          
           <div style={{ gridColumn: '1 / span 2', border: '1px solid #eee', borderRadius: 10, padding: 12 }}>
+            <h3 style={{ marginTop: 0 }}>Dependency / fault-chain graph (demo)</h3>
+            <GraphView graph={graph} />
+            <div style={{ color: '#666', fontSize: 12, marginTop: 6 }}>
+              Edges are inferred for demo. In v1, service dependencies come from Cilium/Hubble flows.
+            </div>
+          </div>
+
+<div style={{ gridColumn: '1 / span 2', border: '1px solid #eee', borderRadius: 10, padding: 12 }}>
             <h3 style={{ marginTop: 0 }}>Fault nodes (anomalies)</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>

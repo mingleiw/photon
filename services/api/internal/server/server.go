@@ -37,6 +37,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/incidents/{id}/anomalies", s.handleAnomalies)
 		r.Get("/incidents/{id}/roots", s.handleRoots)
 		r.Get("/incidents/{id}/heatmap", s.handleHeatmap)
+		r.Get("/incidents/{id}/graph", s.handleGraph)
 	})
 
 	return r
@@ -111,6 +112,16 @@ func (s *Server) handleHeatmap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, chain.Heatmap(anoms))
+}
+
+func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	anoms, err := s.incidentAnomalies(r.Context(), id)
+	if err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, chain.BuildGraph(anoms))
 }
 
 func writeErr(w http.ResponseWriter, code int, err error) {
