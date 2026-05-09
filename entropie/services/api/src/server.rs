@@ -22,18 +22,18 @@ use crate::{
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
-    pub nats: Arc<async_nats::Client>,
+    pub nats: Option<Arc<async_nats::Client>>,
 }
 
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/api/incidents", get(list_incidents))
-        .route("/api/incidents/{id}/anomalies", get(get_anomalies))
-        .route("/api/incidents/{id}/roots", get(get_roots))
-        .route("/api/incidents/{id}/heatmap", get(get_heatmap))
-        .route("/api/incidents/{id}/graph", get(get_graph))
-        .route("/api/incidents/{id}/investigate", get(investigate_sse))
+        .route("/api/incidents/:id/anomalies", get(get_anomalies))
+        .route("/api/incidents/:id/roots", get(get_roots))
+        .route("/api/incidents/:id/heatmap", get(get_heatmap))
+        .route("/api/incidents/:id/graph", get(get_graph))
+        .route("/api/incidents/:id/investigate", get(investigate_sse))
         .with_state(state)
 }
 
@@ -93,16 +93,30 @@ async fn investigate_sse(
     State(s): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    // Publish investigation request to NATS
-    let subject = format!("investigate.{}", id);
-    let _ = s.nats.publish(subject, id.to_string().into()).await;
-
-    // Subscribe to findings for this incident
-    let findings_subject = format!("findings.{}.*", id);
     let nats = s.nats.clone();
+    let findings_subject = format!("findings.{}.*", id);
+
+    // Subscribe BEFORE publishing: agent may complete before the stream starts consuming,
+    // and messages published before subscription are lost in core NATS (no persistence).
+    let pre_sub: Option<async_nats::Subscriber> = if let Some(ref n) = nats {
+        match n.subscribe(findings_subject).await {
+            Ok(sub) => {
+                let subject = format!("investigate.{}", id);
+                let _ = n.publish(subject, id.to_string().into()).await;
+                Some(sub)
+            }
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
 
     let stream = async_stream::stream! {
-        if let Ok(mut sub) = nats.subscribe(findings_subject).await {
+        if nats.is_none() {
+            yield Ok(Event::default().data(r#"{"error":"NATS not configured"}"#));
+            return;
+        }
+        if let Some(mut sub) = pre_sub {
             let timeout = tokio::time::sleep(Duration::from_secs(120));
             tokio::pin!(timeout);
 
@@ -113,7 +127,6 @@ async fn investigate_sse(
                             Some(m) => {
                                 let data = String::from_utf8_lossy(&m.payload).to_string();
                                 yield Ok(Event::default().data(&data));
-                                // Signal end of stream when we get a "done" sentinel
                                 if let Ok(f) = serde_json::from_str::<serde_json::Value>(&data) {
                                     if f.get("done").and_then(|v| v.as_bool()).unwrap_or(false) {
                                         break;
