@@ -1,0 +1,86 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: entropie
+      POSTGRES_PASSWORD: entropie
+      POSTGRES_DB: entropie
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U entropie"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nats:
+    image: nats:2.10-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: ["-js"]
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    profiles:
+      - llm
+
+  api:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://entropie:entropie@postgres:5432/entropie
+      NATS_URL: nats://nats:4222
+      RUST_LOG: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  agent:
+    build:
+      context: ..
+      dockerfile: services/agent/Dockerfile
+    environment:
+      NATS_URL: nats://nats:4222
+      API_BASE_URL: http://api:8080
+      LLM_BASE_URL: http://ollama:11434/v1
+      LLM_MODEL: llama3.1:8b
+      LLM_API_KEY: ollama
+      PROMETHEUS_URL: http://prometheus:9090
+      RUST_LOG: info
+    depends_on:
+      - nats
+      - api
+
+  ui:
+    build:
+      context: ../services/ui
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+volumes:
+  postgres_data:
+  ollama_data:

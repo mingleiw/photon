@@ -1,0 +1,21 @@
+[package]
+name = "entropie-agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+async-nats = "0.35"
+rig-core = "0.36"
+reqwest = { version = "0.12", features = ["json"] }
+async-stream = "0.3"
+futures = "0.3"
+thiserror = "1"
