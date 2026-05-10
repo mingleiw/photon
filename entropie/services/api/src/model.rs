@@ -61,6 +61,15 @@ pub struct Graph {
     pub edges: Vec<GraphEdge>,
 }
 
+/// Live topology edge from eBPF flow capture, stored in `topology_edges` table.
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct TopologyEdge {
+    pub src_service: String,
+    pub dst_service: String,
+    pub weight: f64,
+    pub conn_count: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Finding {
     pub incident_id: Uuid,

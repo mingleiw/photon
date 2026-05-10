@@ -29,13 +29,18 @@ async fn main() -> Result<()> {
     tracing::info!("running migrations");
     db::migrate(&pool).await?;
 
-    tracing::info!("connecting to nats");
-    let nats = async_nats::connect(&nats_url).await?;
-
-    let state = server::AppState {
-        pool,
-        nats: Arc::new(nats),
+    let nats = match async_nats::connect(&nats_url).await {
+        Ok(c) => {
+            tracing::info!("connected to nats at {}", nats_url);
+            Some(Arc::new(c))
+        }
+        Err(e) => {
+            tracing::warn!("nats unavailable ({}): agent investigation disabled", e);
+            None
+        }
     };
+
+    let state = server::AppState { pool, nats };
 
     let app = server::router(state);
     let addr = format!("0.0.0.0:{}", port);

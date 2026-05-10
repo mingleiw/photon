@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 use crate::{
     chain::{build_graph, heatmap, score_roots},
-    model::{Anomaly, Incident},
+    model::{Anomaly, Incident, TopologyEdge},
 };
 
 #[derive(Clone)]
@@ -82,10 +82,17 @@ async fn get_heatmap(State(s): State<AppState>, Path(id): Path<Uuid>) -> impl In
 }
 
 async fn get_graph(State(s): State<AppState>, Path(id): Path<Uuid>) -> impl IntoResponse {
-    match fetch_anomalies(&s.pool, id).await {
-        Ok(anomalies) => Json(json!(build_graph(&anomalies))).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
-    }
+    let anomalies = match fetch_anomalies(&s.pool, id).await {
+        Ok(a) => a,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+    };
+    let live_edges = sqlx::query_as::<_, TopologyEdge>(
+        "SELECT src_service, dst_service, weight, conn_count FROM topology_edges ORDER BY updated_at DESC",
+    )
+    .fetch_all(&s.pool)
+    .await
+    .unwrap_or_default();
+    Json(json!(build_graph(&anomalies, &live_edges))).into_response()
 }
 
 // SSE endpoint — triggers agent investigation and streams findings back to the UI
