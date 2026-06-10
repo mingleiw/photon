@@ -1,3 +1,5 @@
+**Anya's Pop Game** — tap the floating balloons, stars & animals to pop them! 🎈 ([Play →](https://mingleiw.github.io/photon/))
+
 # photon — Fault Chain System (eBPF-first MVP)
 
 This repository is evolving from the original Photon prototype into an **end-to-end Fault Chain System**.
