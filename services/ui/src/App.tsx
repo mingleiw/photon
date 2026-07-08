@@ -12,6 +12,9 @@ type GraphEdge = { from: string; to: string; weight: number; rationale: string }
 
 type Anomaly = { id: string; ts: string; entityType: string; entityId: string; metric: string; severity: number; confidence: number; domain?: string }
 
+type CostItem = { domain: string; ratePerMin: number; durationMin: number; weight: number; estimatedUSD: number }
+type CostSummary = { incidentId: string; durationMin: number; totalUSD: number; breakdown: CostItem[] }
+
 async function getJSON<T>(path: string): Promise<T> {
   const r = await fetch(path)
   if (!r.ok) throw new Error(`${path}: ${r.status}`)
@@ -23,6 +26,46 @@ function barWidth(w: number, max: number) {
   return `${Math.round((w / max) * 100)}%`
 }
 
+
+function CostPanel({ cost }: { cost: CostSummary | null }) {
+  if (!cost) return <div style={{ color: '#777' }}>No cost data.</div>
+  const maxUSD = Math.max(0, ...cost.breakdown.map((c) => c.estimatedUSD))
+  const domainColor: Record<string, string> = { checkout: '#e94560', payments: '#ff8c00', infra: '#1f77b4' }
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
+        <span style={{ fontSize: 28, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>
+          ${cost.totalUSD.toFixed(2)}
+        </span>
+        <span style={{ color: '#666', fontSize: 13 }}>
+          estimated revenue impact &bull; {cost.durationMin.toFixed(0)} min incident
+        </span>
+      </div>
+      {cost.breakdown.map((c) => (
+        <div key={c.domain} style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{c.domain}</div>
+            <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+              ${c.estimatedUSD.toFixed(2)}
+              <span style={{ color: '#888', marginLeft: 6 }}>(${c.ratePerMin}/min × {c.durationMin.toFixed(0)}min × {c.weight.toFixed(2)} weight)</span>
+            </div>
+          </div>
+          <div style={{ background: '#f2f2f2', borderRadius: 999, overflow: 'hidden', height: 10 }}>
+            <div style={{
+              width: maxUSD > 0 ? `${Math.round((c.estimatedUSD / maxUSD) * 100)}%` : '0%',
+              background: domainColor[c.domain] ?? '#888',
+              height: 10,
+              transition: 'width 0.3s ease'
+            }} />
+          </div>
+        </div>
+      ))}
+      <div style={{ color: '#888', fontSize: 11, marginTop: 8 }}>
+        Estimate: domain rate × incident duration × avg anomaly severity×confidence. Rates: checkout $50/min, payments $30/min, infra $10/min.
+      </div>
+    </div>
+  )
+}
 
 function GraphView({ graph }: { graph: Graph }) {
   const nodes = graph.nodes
@@ -110,6 +153,7 @@ export default function App() {
   const [heat, setHeat] = useState<HeatCell[]>([])
   const [anoms, setAnoms] = useState<Anomaly[]>([])
   const [graph, setGraph] = useState<Graph>({ nodes: [], edges: [] })
+  const [cost, setCost] = useState<CostSummary | null>(null)
   const [err, setErr] = useState<string>('')
 
   useEffect(() => {
@@ -128,13 +172,15 @@ export default function App() {
       getJSON<Root[]>(`/api/incidents/${selected}/roots`),
       getJSON<HeatCell[]>(`/api/incidents/${selected}/heatmap`),
       getJSON<Anomaly[]>(`/api/incidents/${selected}/anomalies`),
-      getJSON<Graph>(`/api/incidents/${selected}/graph`)
+      getJSON<Graph>(`/api/incidents/${selected}/graph`),
+      getJSON<CostSummary>(`/api/incidents/${selected}/cost`)
     ])
-      .then(([r, h, a, g]) => {
+      .then(([r, h, a, g, c]) => {
         setRoots(r)
         setHeat(h)
         setAnoms(a)
         setGraph(g)
+        setCost(c)
       })
       .catch((e) => setErr(String(e)))
   }, [selected])
@@ -205,6 +251,11 @@ export default function App() {
           </div>
 
           
+          <div style={{ gridColumn: '1 / span 2', border: '1px solid #eee', borderRadius: 10, padding: 12 }}>
+            <h3 style={{ marginTop: 0 }}>Cost impact</h3>
+            <CostPanel cost={cost} />
+          </div>
+
           <div style={{ gridColumn: '1 / span 2', border: '1px solid #eee', borderRadius: 10, padding: 12 }}>
             <h3 style={{ marginTop: 0 }}>Dependency / fault-chain graph (demo)</h3>
             <GraphView graph={graph} />

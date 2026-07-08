@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -38,6 +39,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/incidents/{id}/roots", s.handleRoots)
 		r.Get("/incidents/{id}/heatmap", s.handleHeatmap)
 		r.Get("/incidents/{id}/graph", s.handleGraph)
+		r.Get("/incidents/{id}/cost", s.handleCost)
 	})
 
 	return r
@@ -122,6 +124,28 @@ func (s *Server) handleGraph(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, chain.BuildGraph(anoms))
+}
+
+func (s *Server) handleCost(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	ctx := r.Context()
+	var inc model.Incident
+	err := s.DB.Pool.QueryRow(ctx, `select id,title,start_ts,end_ts from incidents where id=$1`, id).
+		Scan(&inc.ID, &inc.Title, &inc.StartTs, &inc.EndTs)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			writeErr(w, 404, fmt.Errorf("incident not found"))
+			return
+		}
+		writeErr(w, 500, err)
+		return
+	}
+	anoms, err := s.incidentAnomalies(ctx, id)
+	if err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, chain.EstimateCost(inc, anoms))
 }
 
 func writeErr(w http.ResponseWriter, code int, err error) {
